@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Widget</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="webview-container">
+            <webview
+                id="webframe"
+                src="about:blank"
+                style="width: 100%; height: 100%; border: none;"
+                partition="persist:ai-chat-widget"
+                allowpopups="true"
+                websecurity="false"
+                enableremotemodule="false"
+                nodeintegration="false"
+                plugins="true"
+                disablewebsecurity="true"
+                allowfullscreen="true"
+                webpreferences="contextIsolation=false,enableRemoteModule=false,nodeIntegration=false"
+                useragent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36">
+            </webview>
+        </div>
+
+        <div id="loadingOverlay" class="loading-overlay hidden">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p>正在加载AI网站...</p>
+                <small>右键选择网站 | ESC隐藏窗口</small>
+            </div>
+        </div>
+
+        <div id="welcomeScreen" class="welcome-screen">
+            <div class="welcome-content">
+                <h1>🤖 AI Chat Widget</h1>
+                <p>选择一个AI网站开始聊天</p>
+                <div class="website-grid">
+                    <button class="website-card" data-website="ChatGPT">
+                        <div class="website-icon">🤖</div>
+                        <div class="website-name">ChatGPT</div>
+                    </button>
+                    <button class="website-card" data-website="Claude">
+                        <div class="website-icon">🧠</div>
+                        <div class="website-name">Claude</div>
+                    </button>
+                    <button class="website-card" data-website="Gemini">
+                        <div class="website-icon">💎</div>
+                        <div class="website-name">Gemini</div>
+                    </button>
+                    <button class="website-card" data-website="文心一言">
+                        <div class="website-icon">🎯</div>
+                        <div class="website-name">文心一言</div>
+                    </button>
+                    <button class="website-card" data-website="通义千问">
+                        <div class="website-icon">🔮</div>
+                        <div class="website-name">通义千问</div>
+                    </button>
+                    <button class="website-card" data-website="Kimi">
+                        <div class="website-icon">🌟</div>
+                        <div class="website-name">Kimi</div>
+                    </button>
+                    <button class="website-card custom-url-card" onclick="showCustomUrlDialog()">
+                        <div class="website-icon">🌐</div>
+                        <div class="website-name">自定义网址</div>
+                    </button>
+                </div>
+                <div class="welcome-tips">
+                    <p>💡 使用技巧：</p>
+                    <ul>
+                        <li>按 <kbd>Ctrl+Space</kbd> 显示/隐藏窗口</li>
+                        <li>按 <kbd>ESC</kbd> 快速隐藏窗口</li>
+                        <li>右键点击网页区域切换网站</li>
+                        <li>按 <kbd>Ctrl+U</kbd> 或点击"自定义网址"输入任意网站</li>
+                        <li>按 <kbd>F5</kbd> 刷新页面</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="contextMenu" class="context-menu hidden">
+            <div class="context-menu-item" data-action="refresh">🔄 刷新</div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="chatgpt">🤖 ChatGPT</div>
+            <div class="context-menu-item" data-action="claude">🧠 Claude</div>
+            <div class="context-menu-item" data-action="gemini">💎 Gemini</div>
+            <div class="context-menu-item" data-action="wenxin">🎯 文心一言</div>
+            <div class="context-menu-item" data-action="tongyi">🔮 通义千问</div>
+            <div class="context-menu-item" data-action="kimi">🌟 Kimi</div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="custom-url">🌐 自定义网址...</div>
+            <div class="context-menu-item" data-action="external">🌐 在浏览器中打开</div>
+            <div class="context-menu-item" data-action="clear">🗑️ 清除登录数据</div>
+            <div class="context-menu-item" data-action="clear-all">🧹 清除所有数据</div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="hide">❌ 隐藏窗口</div>
+        </div>
+
+        <!-- 自定义URL对话框 -->
+        <div id="customUrlDialog" class="custom-url-dialog hidden">
+            <div class="dialog-overlay"></div>
+            <div class="dialog-content">
+                <div class="dialog-header">
+                    <h3>🌐 输入自定义网址</h3>
+                    <button class="dialog-close" onclick="hideCustomUrlDialog()">×</button>
+                </div>
+                <div class="dialog-body">
+                    <div class="input-group">
+                        <label for="customUrlInput">网址 (URL):</label>
+                        <input type="text" id="customUrlInput" placeholder="例如: https://example.com 或 example.com" />
+                        <small class="input-hint">支持 http:// 和 https:// 协议，如果不输入协议将默认使用 https://</small>
+                    </div>
+                    <div class="dialog-buttons">
+                        <button class="btn btn-primary" onclick="loadCustomUrl()">🚀 打开</button>
+                        <button class="btn btn-secondary" onclick="hideCustomUrlDialog()">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

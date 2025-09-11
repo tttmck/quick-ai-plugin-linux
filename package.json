@@ -1,0 +1,88 @@
+{
+  "name": "ai-chat-widget",
+  "version": "1.1.1",
+  "description": "AI Chat Widget - Electron版本，通过快捷键快速访问AI网站，支持自定义网址和ChatGPT复制功能，优化菜单结构",
+  "main": "main.js",
+  "homepage": "https://github.com/ai-chat-widget/ai-chat-widget",
+  "scripts": {
+    "start": "NODE_ENV=production electron .",
+    "dev": "NODE_ENV=development electron . --dev",
+    "build": "electron-builder",
+    "install-deps": "npm install electron electron-builder electron-localshortcut --save-dev"
+  },
+  "keywords": [
+    "ai",
+    "chat",
+    "widget",
+    "electron",
+    "hotkey"
+  ],
+  "author": "AI Chat Widget",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3",
+    "electron-localshortcut": "^3.2.1"
+  },
+  "build": {
+    "appId": "com.aichatwidget.app",
+    "productName": "AI Chat Widget",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "renderer.js",
+      "index.html",
+      "style.css",
+      "package.json",
+      "assets/"
+    ],
+    "linux": {
+      "target": [
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        },
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "Network",
+      "maintainer": "AI Chat Widget <ai-chat-widget@example.com>",
+      "vendor": "AI Chat Widget",
+      "synopsis": "快速访问AI聊天网站的桌面工具",
+      "description": "AI Chat Widget 是一个轻量级的桌面应用，通过 Ctrl+Space 快捷键快速显示/隐藏AI聊天窗口，支持 ChatGPT、Claude、Gemini 等多个AI网站。",
+      "icon": "assets/tray-icon.svg",
+      "desktop": {
+        "Name": "AI Chat Widget",
+        "Comment": "快速访问AI聊天网站",
+        "Keywords": "AI;Chat;ChatGPT;Claude;Gemini;Assistant;",
+        "Category": "Network;WebBrowser;",
+        "StartupNotify": "true"
+      }
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libdrm2",
+        "libxcomposite1",
+        "libxdamage1",
+        "libxrandr2",
+        "libgbm1",
+        "libxkbcommon0",
+        "libasound2"
+      ],
+      "priority": "optional",
+      "afterInstall": "build/after-install.sh",
+      "afterRemove": "build/after-remove.sh"
+    }
+  }
+}
