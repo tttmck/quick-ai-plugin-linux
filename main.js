@@ -3,6 +3,10 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
+// Linux autostart .desktop 文件路径
+const autostartDir = path.join(os.homedir(), '.config', 'autostart');
+const autostartFile = path.join(autostartDir, 'ai-chat-widget.desktop');
+
 class AIChatWidget {
     constructor() {
         this.mainWindow = null;
@@ -17,7 +21,7 @@ class AIChatWidget {
 
         // AI网站配置
         this.websites = {
-            'ChatGPT': 'https://chat.openai.com',
+            'ChatGPT': 'https://chatgpt.com',
             'Claude': 'https://claude.ai',
             'Gemini': 'https://gemini.google.com',
             '文心一言': 'https://yiyan.baidu.com',
@@ -82,9 +86,7 @@ class AIChatWidget {
                 webSecurity: false, // 允许跨域
                 allowRunningInsecureContent: true,
                 webviewTag: true, // 启用webview标签
-                partition: 'persist:ai-chat-widget', // 持久化存储分区
-                experimentalFeatures: true, // 启用实验性功能
-                plugins: true // 启用插件支持
+                partition: 'persist:ai-chat-widget' // 持久化存储分区
             }
         };
 
@@ -111,11 +113,7 @@ class AIChatWidget {
 
                 // 首次隐藏到托盘时显示提示
                 if (this.tray && !this.hasShownTrayNotification) {
-                    this.tray.displayBalloon({
-                        iconType: 'info',
-                        title: 'AI Chat Widget',
-                        content: '应用已最小化到系统托盘，使用 Ctrl+Space 快速显示'
-                    });
+                    console.log('📌 应用已最小化到系统托盘，使用 Ctrl+Space 快速显示');
                     this.hasShownTrayNotification = true;
                 }
             }
@@ -422,7 +420,7 @@ class AIChatWidget {
 
             // 设置请求头
             session.webRequest.onBeforeSendHeaders((details, callback) => {
-                details.requestHeaders['Accept'] = 'text/html,application/xhtml+xml,applic？ation/xml;q=0.9,image/webp,image/apng,*/*;q=0.8';
+                details.requestHeaders['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8';
                 details.requestHeaders['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8';
                 details.requestHeaders['Cache-Control'] = 'no-cache';
                 details.requestHeaders['Pragma'] = 'no-cache';
@@ -433,9 +431,6 @@ class AIChatWidget {
 
                 callback({ requestHeaders: details.requestHeaders });
             });
-
-            // 设置预加载脚本路径（如果需要）
-            session.setPreloads([]);
 
             // 设置剪贴板权限处理
             session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
@@ -510,20 +505,42 @@ class AIChatWidget {
     }
 
     setAutoStart(enable) {
-        // 设置开机启动
-        app.setLoginItemSettings({
-            openAtLogin: enable,
-            openAsHidden: true, // 启动时隐藏窗口
-            name: 'AI Chat Widget',
-            path: process.execPath
-        });
+        try {
+            if (enable) {
+                // 确保 autostart 目录存在
+                if (!fs.existsSync(autostartDir)) {
+                    fs.mkdirSync(autostartDir, { recursive: true });
+                }
 
-        console.log(`${enable ? '✅' : '❌'} 开机启动已${enable ? '启用' : '禁用'}`);
+                const desktopContent = `[Desktop Entry]
+Type=Application
+Name=AI Chat Widget
+Exec=${process.execPath} --hidden
+Icon=${path.join(__dirname, 'assets', 'tray-icon.svg')}
+Comment=快速访问AI聊天网站
+X-GNOME-Autostart-enabled=true
+Hidden=false
+`;
+                fs.writeFileSync(autostartFile, desktopContent);
+                console.log('✅ 开机启动已启用');
+            } else {
+                if (fs.existsSync(autostartFile)) {
+                    fs.unlinkSync(autostartFile);
+                }
+                console.log('❌ 开机启动已禁用');
+            }
+        } catch (error) {
+            console.error('⚠️ 设置开机启动失败:', error.message);
+        }
 
         // 重新创建托盘菜单以更新开机启动状态
         if (this.tray) {
             this.updateTrayMenu();
         }
+    }
+
+    isAutoStartEnabled() {
+        return fs.existsSync(autostartFile);
     }
 
     updateTrayMenu() {
@@ -555,11 +572,10 @@ class AIChatWidget {
                 }
             },
             { type: 'separator' },
-            { type: 'separator' },
             {
                 label: '开机启动',
                 type: 'checkbox',
-                checked: app.getLoginItemSettings().openAtLogin,
+                checked: this.isAutoStartEnabled(),
                 click: (menuItem) => {
                     this.setAutoStart(menuItem.checked);
                 }
@@ -617,8 +633,8 @@ class AIChatWidget {
             this.setupIPC();
             this.setupMenu();
 
-            // 检查是否应该隐藏启动（开机启动时）
-            if (app.getLoginItemSettings().wasOpenedAsHidden) {
+            // 检查是否应该隐藏启动（开机自启时通过 --hidden 参数标记）
+            if (process.argv.includes('--hidden')) {
                 this.hideWindow();
                 console.log('🔇 应用以隐藏模式启动');
             } else {
@@ -639,9 +655,8 @@ class AIChatWidget {
         });
 
         // 当所有窗口都关闭时不退出应用，保持在托盘运行
-        app.on('window-all-closed', (event) => {
-            // 阻止应用退出，保持托盘运行
-            event.preventDefault();
+        app.on('window-all-closed', () => {
+            // 不调用 app.quit()，保持托盘运行
         });
 
         app.on('activate', () => {

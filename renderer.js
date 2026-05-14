@@ -5,7 +5,7 @@ class AIChatWidgetNoToolbar {
     constructor() {
         this.webframe = null;
         this.websites = {
-            'ChatGPT': 'https://chat.openai.com',
+            'ChatGPT': 'https://chatgpt.com',
             'Claude': 'https://claude.ai',
             'Gemini': 'https://gemini.google.com',
             '文心一言': 'https://yiyan.baidu.com',
@@ -29,7 +29,8 @@ class AIChatWidgetNoToolbar {
         this.currentWebsite = '';
         this.currentWebsiteName = '';
         this.isLoading = false;
-        
+        this._loadingCleanup = null; // 当前加载操作的清理函数
+
         this.init();
     }
 
@@ -87,11 +88,6 @@ class AIChatWidgetNoToolbar {
 
             // 为ChatGPT等网站注入剪贴板支持脚本
             this.injectClipboardSupport();
-        });
-
-        this.webframe.addEventListener('did-fail-load', (event) => {
-            console.error('❌ webview加载失败:', event.errorDescription);
-            this.hideLoading();
         });
 
         // 处理新窗口请求（如第三方登录）
@@ -207,7 +203,7 @@ class AIChatWidgetNoToolbar {
                 this.showSuccessMessage('网址加载成功！');
             } else {
                 console.error('❌ 自定义URL加载失败:', result.error);
-                this.showErrorMessage('加载失败: ' + result.error);
+                this.showToast('加载失败: ' + result.error);
             }
         });
 
@@ -388,11 +384,22 @@ class AIChatWidgetNoToolbar {
         }, 10000);
     }
 
+    // 清理上一次加载操作的监听器和超时
+    _cleanupLoading() {
+        if (this._loadingCleanup) {
+            this._loadingCleanup();
+            this._loadingCleanup = null;
+        }
+    }
+
     loadWebsite(websiteName, retryCount = 0) {
         if (!this.websites[websiteName]) {
             console.error('❌ 未知的网站:', websiteName);
             return;
         }
+
+        // 清理上一次的监听器
+        this._cleanupLoading();
 
         const url = this.websites[websiteName];
         console.log(`🌐 加载网站: ${websiteName} - ${url} (尝试 ${retryCount + 1})`);
@@ -413,9 +420,19 @@ class AIChatWidgetNoToolbar {
             this.webframe.setAttribute('useragent', specialConfig.userAgent);
         }
 
-        const timeoutDuration = specialConfig ? 30000 : 20000; // 特殊网站给更多时间
+        const timeoutDuration = specialConfig ? 30000 : 20000;
+
+        let cleaned = false;
+        const cleanup = () => {
+            if (cleaned) return;
+            cleaned = true;
+            clearTimeout(loadingTimeout);
+            this.webframe.removeEventListener('dom-ready', handleDomReady);
+            this.webframe.removeEventListener('did-fail-load', handleLoadFail);
+        };
 
         const loadingTimeout = setTimeout(() => {
+            cleanup();
             console.log('⚠️ 加载超时');
             this.hideLoading();
             this.handleLoadError({
@@ -426,24 +443,24 @@ class AIChatWidgetNoToolbar {
             });
         }, timeoutDuration);
 
-        // 使用webview的事件
         const handleDomReady = () => {
-            clearTimeout(loadingTimeout);
+            cleanup();
             this.hideLoading();
-            this.webframe.removeEventListener('dom-ready', handleDomReady);
             console.log('✅ 网站加载成功:', websiteName);
         };
 
         const handleLoadFail = (event) => {
-            clearTimeout(loadingTimeout);
+            cleanup();
             this.hideLoading();
-            this.webframe.removeEventListener('did-fail-load', handleLoadFail);
             this.handleLoadError({
                 ...event,
                 websiteName: websiteName,
                 retryCount: retryCount
             });
         };
+
+        // 记录清理函数，供下一次调用时清理
+        this._loadingCleanup = cleanup;
 
         this.webframe.addEventListener('dom-ready', handleDomReady);
         this.webframe.addEventListener('did-fail-load', handleLoadFail);
@@ -661,29 +678,7 @@ class AIChatWidgetNoToolbar {
     }
 
     showSuccessMessage(message) {
-        const tip = document.createElement('div');
-        tip.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #4CAF50;
-            color: white;
-            padding: 12px 16px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 1000;
-            font-size: 14px;
-            max-width: 300px;
-        `;
-        tip.textContent = message;
-
-        document.body.appendChild(tip);
-
-        setTimeout(() => {
-            if (tip.parentNode) {
-                tip.remove();
-            }
-        }, 3000);
+        this.showToast(message, 'success');
     }
 
     // 注入剪贴板支持脚本
@@ -860,18 +855,20 @@ class AIChatWidgetNoToolbar {
             input.focus();
             input.select();
 
-            // 添加键盘事件监听
-            const handleKeyPress = (e) => {
+            // 清理旧的监听器（如果有）
+            if (this._customUrlKeyHandler) {
+                input.removeEventListener('keydown', this._customUrlKeyHandler);
+            }
+
+            this._customUrlKeyHandler = (e) => {
                 if (e.key === 'Enter') {
                     this.loadCustomUrl();
-                    input.removeEventListener('keypress', handleKeyPress);
                 } else if (e.key === 'Escape') {
                     this.hideCustomUrlDialog();
-                    input.removeEventListener('keypress', handleKeyPress);
                 }
             };
 
-            input.addEventListener('keypress', handleKeyPress);
+            input.addEventListener('keydown', this._customUrlKeyHandler);
             console.log('📝 显示自定义URL对话框');
         }
     }
@@ -886,6 +883,11 @@ class AIChatWidgetNoToolbar {
         }
 
         if (input) {
+            // 清理监听器
+            if (this._customUrlKeyHandler) {
+                input.removeEventListener('keydown', this._customUrlKeyHandler);
+                this._customUrlKeyHandler = null;
+            }
             input.value = '';
         }
 
@@ -899,7 +901,7 @@ class AIChatWidgetNoToolbar {
 
         const url = input.value.trim();
         if (!url) {
-            this.showErrorMessage('请输入网址');
+            this.showToast('请输入网址');
             return;
         }
 
@@ -909,6 +911,8 @@ class AIChatWidgetNoToolbar {
 
     // 直接加载自定义URL（跳过验证，用于已验证的URL）
     loadCustomUrlDirect(url) {
+        this._cleanupLoading();
+
         this.currentWebsite = url;
         this.currentWebsiteName = '自定义网站';
         this.currentRetryCount = 0;
@@ -916,45 +920,64 @@ class AIChatWidgetNoToolbar {
         this.hideWelcomeScreen();
         this.showLoading();
 
+        let cleaned = false;
+        const cleanup = () => {
+            if (cleaned) return;
+            cleaned = true;
+            clearTimeout(loadingTimeout);
+            this.webframe.removeEventListener('dom-ready', handleDomReady);
+            this.webframe.removeEventListener('did-fail-load', handleLoadFail);
+        };
+
         const loadingTimeout = setTimeout(() => {
+            cleanup();
             console.log('⚠️ 自定义URL加载超时');
             this.hideLoading();
-            this.showErrorMessage('网站加载超时，请检查网址是否正确');
+            this.showToast('网站加载超时，请检查网址是否正确');
         }, 30000);
 
-        // 使用webview的事件
         const handleDomReady = () => {
-            clearTimeout(loadingTimeout);
+            cleanup();
             this.hideLoading();
-            this.webframe.removeEventListener('dom-ready', handleDomReady);
             console.log('✅ 自定义网站加载成功:', url);
         };
 
         const handleLoadFail = (event) => {
-            clearTimeout(loadingTimeout);
+            cleanup();
             this.hideLoading();
-            this.webframe.removeEventListener('did-fail-load', handleLoadFail);
             console.error('❌ 自定义网站加载失败:', event.errorDescription);
-            this.showErrorMessage('网站加载失败: ' + event.errorDescription);
+            this.showToast('网站加载失败: ' + event.errorDescription);
         };
+
+        this._loadingCleanup = cleanup;
 
         this.webframe.addEventListener('dom-ready', handleDomReady);
         this.webframe.addEventListener('did-fail-load', handleLoadFail);
 
-        // 开始加载
         this.webframe.src = url;
         console.log('🚀 开始加载自定义网站:', url);
     }
 
-    // 显示错误消息
-    showErrorMessage(message) {
+    // 显示简短提示消息
+    showToast(message, type = 'error') {
+        // 移除已有的 toast，避免叠加
+        document.querySelectorAll('.app-toast').forEach(el => el.remove());
+
+        const colors = {
+            error: '#f44336',
+            success: '#4CAF50',
+            warning: '#ffc107',
+            info: '#2196F3'
+        };
+
         const tip = document.createElement('div');
+        tip.className = 'app-toast';
         tip.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #f44336;
-            color: white;
+            background: ${colors[type] || colors.error};
+            color: ${type === 'warning' ? '#212529' : 'white'};
             padding: 12px 16px;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);

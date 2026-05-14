@@ -3,12 +3,12 @@
   "version": "1.1.1",
   "description": "AI Chat Widget - Electron版本，通过快捷键快速访问AI网站，支持自定义网址和ChatGPT复制功能，优化菜单结构",
   "main": "main.js",
-  "homepage": "https://github.com/ai-chat-widget/ai-chat-widget",
+  "homepage": "",
   "scripts": {
     "start": "NODE_ENV=production electron .",
     "dev": "NODE_ENV=development electron . --dev",
     "build": "electron-builder",
-    "install-deps": "npm install electron electron-builder electron-localshortcut --save-dev"
+    "install-deps": "npm install electron electron-builder --save-dev"
   },
   "keywords": [
     "ai",
@@ -21,8 +21,7 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^28.3.3",
-    "electron-builder": "^24.13.3",
-    "electron-localshortcut": "^3.2.1"
+    "electron-builder": "^24.13.3"
   },
   "build": {
     "appId": "com.aichatwidget.app",
@@ -36,7 +35,8 @@
       "index.html",
       "style.css",
       "package.json",
-      "assets/"
+      "assets/",
+      "build/"
     ],
     "linux": {
       "target": [
