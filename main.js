@@ -515,7 +515,7 @@ class AIChatWidget {
                 const desktopContent = `[Desktop Entry]
 Type=Application
 Name=AI Chat Widget
-Exec=${process.execPath} --hidden
+Exec="${process.execPath}" --hidden
 Icon=${path.join(__dirname, 'assets', 'tray-icon.svg')}
 Comment=快速访问AI聊天网站
 X-GNOME-Autostart-enabled=true
